@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "StayOS backend - PG, Hostel and Co-living Management Platform",
   "type": "module",
+  "main": "index.js",
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js"
