@@ -27,8 +27,8 @@ router.route("/:id")
     .patch(verifyRole(["OWNER"]),verifyPropertyOwnership,updateProperty)
     .delete(verifyRole(["OWNER"]),verifyPropertyOwnership,deleteProperty)
 
-router.route(":/id/caretaker")
- .put(verifyRole(["OWNER"]),verifyPropertyOwnership,assignCaretaker)
+router.route("/:id/caretaker")
+ .put(verifyRole(["OWNER"]),verifyPropertyOwnership,assignCaretaker);
 
 
 

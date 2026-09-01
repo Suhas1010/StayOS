@@ -3,7 +3,8 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 
 import authRouter from "./routes/auth.routes.js";
-
+import propertyRouter from "./routes/property.routes.js";
+import roomRouter from "./routes/room.routes.js"
 const app = express();
 
 // Basic configuration
@@ -36,5 +37,7 @@ app.use(
 
 // Routes
 app.use("/api/v1/auth", authRouter);
+app.use("/api/v1/properties", propertyRouter);
+app.use("/api/v1/properties/:propertyId/rooms", roomRouter);
 
 export default app;
