@@ -18,7 +18,6 @@ const verifyJWT = AsyncHandler(async(req,res,next)=>{
         throw new ApiError(404,"User does not exist");
     }
     req.user = user;
-
      next();
     
 });
