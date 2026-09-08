@@ -1,301 +1,800 @@
-# Product Requirements Document (PRD)
-## StayOS Backend — Multi-Property PG/Hostel Management API
+# StayOS — Multi-Property PG / Hostel / Co-Living Management Platform
 
-**Version:** 1.0.0
-**Product Type:** Backend REST API
+**Version:** 2.0  
+**Product Type:** Full-Stack Web Application  
+**Owner:** Suhas  
+**Status:** Phase 1 — Core Backend Complete
 
 ---
 
 ## 1. Product Overview
 
-StayOS is a multi-property management backend for PG, hostel, and co-living owners. It replaces the WhatsApp/Excel/notebook workflow with a centralized system for properties, rooms, tenants, rent, and complaints.
+StayOS is a multi-property PG, hostel, and co-living management platform.
 
-Version 1 is backend-only. Frontend is a separate, later phase.
+The system allows a single owner to manage multiple properties while maintaining property-scoped access control.
 
----
+Each property can contain:
 
-## 2. Target Users
+- Rooms
+- Tenants
+- Caretakers
+- Rent records
+- Complaints
 
-- **Owner** — administers properties, rooms, tenants, rent, caretaker assignment.
-- **Caretaker** — manages one assigned property's rooms, tenants, complaints.
-- **Tenant** — views own room/rent, raises/tracks complaints.
+The backend follows a production-oriented architecture with:
 
----
-
-## 3. Core Features
-
-### 3.1 Authentication & Authorization
-- **Registration** with email verification (verification token sent, account unusable until confirmed — same pattern as Project Camp)
-- **Login** issuing both an **access token** (short-lived, used on every request) and a **refresh token** (long-lived, stored as httpOnly cookie, used only to mint new access tokens)
-- **Logout** — invalidates refresh token server-side
-- **Current user** — return logged-in user's profile from token
-- **Change password** — while logged in
-- **Refresh token endpoint** — exchange a valid refresh token for a new access token without re-login
-- **Forgot / reset password** — token-based reset flow via email
-- **Resend email verification**
-- Role-based access control (Owner / Caretaker / Tenant)
-- Ownership checks in addition to role checks — a Caretaker must be verified as assigned to *that specific property*
-
-### 3.2 Property Management
-- CRUD (Owner only for write ops)
-- Assign caretaker to a property
-- One owner, multiple properties
-
-### 3.3 Room Management
-- Create rooms under a property (capacity, rent amount)
-- Occupancy state derived from `occupants[]` vs `capacity`: AVAILABLE / PARTIALLY OCCUPIED / FULL
-- Backend enforces `occupants.length <= capacity`
-
-### 3.4 Tenant Management
-- Register tenant, assign to property + room
-- Validation chain: property belongs to owner → room belongs to property → room has capacity → tenant created → added to `occupants[]`
-
-### 3.5 Rent Management
-- Generate rent records (amount, due date, status)
-- Status: PENDING → PAID, or PENDING → OVERDUE past due date
-- Tenant restricted to own records
-
-### 3.6 Complaint Management
-- Tenant raises complaint against their property
-- Status: REPORTED → IN_PROGRESS → RESOLVED
-- Caretaker updates status, scoped to their assigned property only
+- JWT authentication
+- Role-based access control
+- Property-level authorization
+- Modular routes/controllers
+- Centralized error handling
+- Validation
+- MongoDB/Mongoose
+- Property-level data isolation
 
 ---
 
-## 4. Technical Specifications
+## 2. User Roles
 
-### 4.1 API Endpoint Structure
+### OWNER
 
-**Auth Routes** `/api/v1/auth/`
-```
-POST   /register
-POST   /login
-POST   /logout                              (secured)
-GET    /current-user                        (secured)
-POST   /change-password                     (secured)
-POST   /refresh-token
-GET    /verify-email/:verificationToken
-POST   /forgot-password
-POST   /reset-password/:resetToken
-POST   /resend-email-verification            (secured)
-```
+Has complete control over owned properties.
 
-**Property Routes** `/api/v1/properties/`
-```
-POST   /                                    (secured, Owner)
-GET    /                                    (secured)
-GET    /:id                                 (secured, role-based)
-PUT    /:id                                 (secured, Owner)
-PUT    /:id/caretaker                       (secured, Owner)
-DELETE /:id                                 (secured, Owner)
-```
+Can:
 
-**Room Routes** `/api/v1/properties/:propertyId/rooms`
-```
-POST   /                                    (secured, Owner)
-GET    /                                    (secured, role-based)
-GET    /:roomId                             (secured, role-based)
-PUT    /:roomId                             (secured, Owner)
-DELETE /:roomId                             (secured, Owner)
-```
+- Create, update, and delete properties
+- Manage rooms
+- Manage tenants
+- Manage rent
+- Manage complaints
+- Assign caretakers
+- Access data belonging to owned properties
 
-**Tenant Routes** `/api/v1/tenants/`
-```
-POST   /                                    (secured, Owner)
-GET    /property/:propertyId                (secured, role-based)
-GET    /:id                                 (secured, role-based)
-PUT    /:id                                 (secured, Owner)
-DELETE /:id                                 (secured, Owner)
-```
+### CARETAKER
 
-**Rent Routes** `/api/v1/rents/`
-```
-POST   /                                    (secured, Owner)
-GET    /my-rents                            (secured, Tenant)
-GET    /property/:propertyId                (secured, Owner/Caretaker)
-PATCH  /:id/status                          (secured, Owner)
-```
+Can access and manage only properties assigned to them.
 
-**Complaint Routes** `/api/v1/complaints/`
-```
-POST   /                                    (secured, Tenant)
-GET    /property/:propertyId                (secured, Owner/Caretaker)
-GET    /my-complaints                       (secured, Tenant)
-PATCH  /:id/status                          (secured, Caretaker/Owner)
-```
+Can:
 
-### 4.2 Permission Matrix
+- View/manage rooms where permitted
+- View tenants
+- Manage rent
+- Update complaint status
+- Access only assigned properties
 
-| Feature | Owner | Caretaker | Tenant |
-|---|---|---|---|
-| Create/Update/Delete Property | ✓ | ✗ | ✗ |
-| Assign Caretaker | ✓ | ✗ | ✗ |
-| Create/Update/Delete Room | ✓ | ✗ | ✗ |
-| View Rooms | ✓ | ✓ own property | ✓ own room |
-| Register/Update/Delete Tenant | ✓ | ✗ | ✗ |
-| Generate Rent | ✓ | ✗ | ✗ |
-| Mark Rent Paid | ✓ | ✗ | ✗ |
-| View Rent | ✓ | ✓ own property | ✓ own only |
-| Raise Complaint | ✗ | ✗ | ✓ |
-| Update Complaint Status | ✓ | ✓ own property | ✗ |
-| View Complaint | ✓ | ✓ own property | ✓ own only |
+### TENANT
 
-### 4.3 Data Models
+Can access only their own tenant-related information.
 
-**User**
-```
-fullName
-email
-password              (hashed, bcrypt)
-phone
-role                  [OWNER | CARETAKER | TENANT]
-isEmailVerified        Boolean, default false
-refreshToken           String (hashed or stored, invalidated on logout)
-emailVerificationToken
-emailVerificationExpiry
-forgotPasswordToken
-forgotPasswordExpiry
-```
+Can:
 
-**Property**: `name, address, type[PG|HOSTEL|APARTMENT], owner, caretaker`
-
-**Room**: `roomNumber, capacity, rentAmount, property, occupants[]`
-
-**Rent**: `tenant, property, amount, dueDate, status[PENDING|PAID|OVERDUE]`
-
-**Complaint**: `title, description, tenant, property, status[REPORTED|IN_PROGRESS|RESOLVED]`
+- View own profile
+- View own rent records
+- Create complaints
+- View own complaints
+- View permitted property/room information
 
 ---
 
-## 5. Auth Flow Detail (mirrors Project Camp)
+## 3. Core Data Model
 
-```
-Register
-   ↓
-Verification email sent (token + expiry stored on User)
-   ↓
-User clicks verify-email link → isEmailVerified = true
-   ↓
-Login → issues:
-   - accessToken  (short expiry, e.g. 15min–1hr, sent in response body)
-   - refreshToken (long expiry, e.g. 7–10 days, httpOnly cookie + stored on User doc)
-   ↓
-Client sends accessToken on each request → verifyJWT middleware
-   ↓
-accessToken expires → client calls /refresh-token with refreshToken cookie
-   ↓
-Server validates refreshToken against stored value → issues new accessToken
-   ↓
-Logout → refreshToken cleared server-side + cookie cleared
+```text
+User
+ ├── OWNER
+ ├── CARETAKER
+ └── TENANT
+
+OWNER
+  │
+  └── 1:N Properties
+          │
+          ├── 1:N Rooms
+          │      └── Occupants
+          │
+          ├── 1:N Tenants
+          │
+          ├── 1:N Rent Records
+          │
+          └── 1:N Complaints
+
+Property
+ └── Caretaker
 ```
 
-**Forgot password:**
+### Main Models
+
+- User
+- Property
+- Room
+- Tenant
+- Rent
+- Complaint
+
+---
+
+# PHASE 1 — CORE BACKEND
+
+## 4. Authentication
+
+Base path:
+
+```text
+/api/v1/auth
 ```
-POST /forgot-password (email)
+
+### Routes
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | `/register` | Register user |
+| POST | `/login` | Login |
+| POST | `/logout` | Logout |
+| GET | `/current-user` | Get logged-in user |
+| PATCH | `/change-password` | Change password |
+| GET | `/verify-email/:verificationToken` | Verify email |
+| POST | `/resend-email-verification` | Resend verification |
+| POST | `/forgot-password` | Request password reset |
+| POST | `/reset-password/:resetToken` | Reset password |
+| POST | `/refresh-token` | Refresh access token |
+
+### Authentication Standards
+
+- JWT-based authentication
+- Access token + refresh token
+- Password hashing
+- Email verification
+- Password reset
+- Protected routes through `verifyJWT`
+- Role-based authorization through `verifyRole`
+
+---
+
+## 5. Property Management
+
+Base path:
+
+```text
+/api/v1/properties
+```
+
+### Routes
+
+| Method | Endpoint | Access |
+|---|---|---|
+| POST | `/` | OWNER |
+| GET | `/` | OWNER |
+| GET | `/:propertyId` | OWNER |
+| PATCH | `/:propertyId` | OWNER |
+| DELETE | `/:propertyId` | OWNER |
+
+### Property Fields
+
+```text
+name
+description
+type
+owner
+caretaker
+address
+contact
+amenities
+images
+```
+
+### Property Types
+
+```text
+PG
+HOSTEL
+APARTMENT
+```
+
+### Access Rules
+
+An owner can access only properties where:
+
+```text
+property.owner === req.user._id
+```
+
+A caretaker can access only properties assigned to them.
+
+---
+
+## 6. Room Management
+
+Base path:
+
+```text
+/api/v1/properties/:propertyId/rooms
+```
+
+### Room Fields
+
+```text
+roomNumber
+capacity
+rentAmount
+property
+occupants[]
+```
+
+### Routes
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | `/` | Create room |
+| GET | `/` | Get rooms |
+| GET | `/:roomId` | Get room |
+| PUT | `/:roomId` | Update room |
+| DELETE | `/:roomId` | Delete room |
+
+### Room Rules
+
+- Every room belongs to one property.
+- Occupants are tracked through the `occupants` array.
+- Room capacity must be respected.
+- A tenant and room must belong to the same property.
+- Room deletion should not leave active occupants.
+
+---
+
+## 7. Tenant Management
+
+Base path:
+
+```text
+/api/v1/properties/:propertyId/tenants
+```
+
+### Tenant Fields
+
+```text
+user
+property
+room
+```
+
+### Routes
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | `/` | Create tenant |
+| GET | `/` | Get tenants |
+| GET | `/:tenantId` | Get tenant |
+| PATCH | `/:tenantId` | Update tenant |
+| DELETE | `/:tenantId` | Delete tenant |
+| POST | `/:tenantId/assign-room/:roomId` | Assign room |
+| PATCH | `/:tenantId/remove-room` | Remove from room |
+
+### Tenant Rules
+
+- Tenant must have the `TENANT` role.
+- Tenant belongs to one property.
+- Tenant may occupy one room.
+- Room and tenant must belong to the same property.
+- Room capacity cannot be exceeded.
+- Removing a tenant also removes them from the room's `occupants` array.
+
+---
+
+## 8. Rent Management
+
+Base path:
+
+```text
+/api/v1/properties/:propertyId/tenants/:tenantId/rent
+```
+
+### Rent Fields
+
+```text
+tenant
+property
+amount
+dueDate
+status
+```
+
+### Rent Status
+
+```text
+PENDING
+PAID
+OVERDUE
+```
+
+### Routes
+
+| Method | Endpoint | Access |
+|---|---|---|
+| POST | `/` | OWNER / CARETAKER |
+| GET | `/` | OWNER / CARETAKER / TENANT |
+| GET | `/:rentId` | OWNER / CARETAKER / TENANT |
+| PATCH | `/:rentId` | OWNER / CARETAKER |
+| DELETE | `/:rentId` | OWNER |
+| POST | `/:rentId/pay` | OWNER / CARETAKER |
+
+### Rent Rules
+
+Every rent operation must verify:
+
+```text
+Tenant → Property
+Rent → Tenant
+Rent → Property
+```
+
+This prevents cross-property data access.
+
+---
+
+## 9. Complaint Management
+
+Base path:
+
+```text
+/api/v1/properties/:propertyId/complaints
+```
+
+### Complaint Fields
+
+```text
+tenant
+property
+title
+description
+status
+createdAt
+updatedAt
+```
+
+### Complaint Status
+
+```text
+REPORTED
+IN_PROGRESS
+RESOLVED
+```
+
+### Routes
+
+| Method | Endpoint | Access |
+|---|---|---|
+| POST | `/` | TENANT |
+| GET | `/` | OWNER / CARETAKER |
+| GET | `/my-complaints` | TENANT |
+| GET | `/:complaintId` | OWNER / CARETAKER / TENANT |
+| PATCH | `/:complaintId/status` | OWNER / CARETAKER |
+| DELETE | `/:complaintId` | OWNER |
+
+### Complaint Rules
+
+- Tenant can create complaints only for their property.
+- Tenant can view their own complaints.
+- Owner/caretaker can view complaints for accessible properties.
+- Only owner/caretaker can update complaint status.
+- Complaint must belong to the requested property.
+- Only the owner can delete complaints.
+
+---
+
+## 10. Backend Engineering Standards
+
+### Architecture
+
+```text
+routes
    ↓
-resetToken + expiry generated, emailed
+middlewares
    ↓
-POST /reset-password/:resetToken (new password)
+controllers
    ↓
-Token validated against expiry → password updated → token cleared
+models
+```
+
+Business logic can gradually move into:
+
+```text
+services/
+```
+
+### Utilities
+
+Centralized utilities:
+
+- `AsyncHandler`
+- `ApiError`
+- `ApiResponse`
+
+### Security
+
+- JWT authentication
+- Role-based authorization
+- Property-access middleware
+- Password hashing
+- Input validation
+- Property-level data isolation
+
+### Property Access Middleware
+
+Core middleware:
+
+```text
+verifyPropertyOwnership
+verifyCaretakerAssignment
+verifyPropertyAccess
+verifyTenantAccess
+```
+
+The objective is to ensure that a user cannot access another property's data simply by changing a MongoDB ObjectId in the URL.
+
+---
+
+# PHASE 2 — ENGINEERING DEPTH
+
+## 11. Rent Ledger
+
+Move from isolated rent records toward a proper financial ledger.
+
+Potential structure:
+
+```text
+Tenant
+   ↓
+Monthly Rent
+   ↓
+Payment
+   ↓
+Transaction
+```
+
+Track:
+
+- Rent generated
+- Amount paid
+- Remaining balance
+- Payment date
+- Payment method
+- Transaction reference
+- Payment history
+
+---
+
+## 12. Database Optimization
+
+Introduce indexes for frequently queried fields.
+
+Potential indexes:
+
+```text
+User.email
+Property.owner
+Property.caretaker
+Room.property
+Tenant.property
+Tenant.user
+Rent.tenant
+Rent.property
+Complaint.property
+Complaint.tenant
+```
+
+Add compound indexes where query patterns justify them.
+
+---
+
+## 13. Search, Filtering & Pagination
+
+### Search & Filtering
+
+Support:
+
+```text
+Search tenants
+Search rooms
+Filter occupied/vacant rooms
+Filter rent by status
+Filter complaints by status
+Filter complaints by tenant
+```
+
+Example:
+
+```text
+GET /tenants?search=suhas
+GET /rent?status=PAID
+GET /complaints?status=REPORTED
+```
+
+### Pagination
+
+Large datasets should not be returned in a single request.
+
+Implement pagination for:
+
+- Properties
+- Rooms
+- Tenants
+- Rent records
+- Complaints
+- Transactions
+
+Example:
+
+```text
+GET /tenants?page=1&limit=10
+```
+
+Response should contain metadata such as:
+
+```text
+total
+page
+limit
+totalPages
 ```
 
 ---
 
-## 6. Security Features
-- JWT access + refresh token pair
-- Refresh token stored server-side (User doc) for invalidation on logout
-- Role-based authorization middleware
-- Ownership verification middleware — role check alone is insufficient
-- Email verification required before full access (match Project Camp's pattern; can be relaxed to optional for V1 if email service setup is a blocker)
-- Password reset via time-limited token
-- Password hashing (bcrypt)
-- Input validation on all endpoints
+## 14. Redis
+
+Introduce Redis for performance-critical operations.
+
+Potential uses:
+
+- Caching property data
+- Rate limiting
+- Frequently accessed dashboard data
+- Temporary verification/reset data
+- Token/session-related workflows
+
+Architecture:
+
+```text
+Client
+   ↓
+Express API
+   ↓
+Redis ───── MongoDB
+```
+
+---
+
+## 15. Advanced Authentication & Security
+
+Improve authentication with:
+
+- Refresh-token rotation
+- Token revocation
+- Rate limiting
+- Login attempt protection
+- Strong validation
+- Secure cookie configuration
+- Security headers
+- Better error handling
+- Audit logging
+
+---
+
+## 16. Multi-Tenancy / Data Isolation
+
+Strengthen property-level isolation.
+
+Every property-owned resource should ultimately be traceable through:
+
+```text
+User
+ ↓
+Property
+ ↓
+Resource
+```
+
+No owner/caretaker should be able to access another property's:
+
+- Rooms
+- Tenants
+- Rent
+- Complaints
+- Transactions
+
+---
+
+# PHASE 3 — FRONTEND & DEPLOYMENT
+
+## 17. Frontend
+
+### Frontend Stack
+
+```text
+React
+Tailwind CSS
+Axios
+React Router
+```
+
+### Main UI
+
+```text
+Login / Register
+      ↓
+Dashboard
+      ↓
+Properties
+      ├── Rooms
+      ├── Tenants
+      ├── Rent
+      ├── Complaints
+      └── Transactions
+```
+
+### Owner Dashboard
+
+Display:
+
+- Total properties
+- Total rooms
+- Occupied rooms
+- Vacant rooms
+- Total tenants
+- Pending rent
+- Overdue rent
+- Open complaints
+
+### Caretaker Dashboard
+
+Display information only for assigned properties.
+
+### Tenant Dashboard
+
+Display:
+
+- Room information
+- Rent
+- Payment history
+- Complaints
+- Complaint status
+
+---
+
+## 18. Deployment
+
+Production architecture:
+
+```text
+Frontend
+   ↓
+Backend API
+   ↓
+MongoDB
+   ↓
+Redis
+```
+
+Production concerns:
+
+- Environment variables
 - CORS configuration
+- HTTPS
+- Logging
+- Error monitoring
+- Database backups
+- API rate limiting
+- CI/CD
+- Docker
+- Production configuration
 
 ---
 
-## 7. Version 1 Scope
+# 19. Complete Development Order
 
-**Must have:** Full auth flow (access/refresh tokens, email verification, password reset), RBAC + ownership checks, multi-property support, rooms, occupancy logic, tenants, rent records, complaints, REST API, MongoDB, deployment.
+## Phase 1 — Core Backend
 
-**Not required initially:** Frontend, online payments, WhatsApp integration, AI, Redis, BullMQ, maps, advanced analytics, microservices, Kubernetes.
+1. Project setup
+2. Authentication
+3. Authorization & middleware
+4. Property management
+5. Room management
+6. Tenant management
+7. Rent management
+8. Complaint management
+9. API testing & security audit
+
+## Phase 2 — Engineering Depth
+
+10. Rent ledger
+11. Transactions
+12. Pagination
+13. Search & filtering
+14. Database indexing
+15. Redis
+16. Advanced authentication
+17. Rate limiting
+18. Audit logging
+19. Strong multi-property isolation
+
+## Phase 3 — Product
+
+20. React frontend
+21. Dashboards
+22. Tenant UI
+23. Owner UI
+24. Caretaker UI
+25. Deployment
+26. Docker / CI-CD
+27. Production monitoring
 
 ---
 
-## 8. Success Criteria
-- Full auth flow working end to end: register → verify → login → access-protected-route → refresh → logout
-- Forgot/reset password flow functioning
-- Ownership-scoped data access enforced at the backend, not just hidden in UI
-- Full property → room → tenant → rent → complaint lifecycle working
-- Deployed API, testable via Postman/Thunder Client
+# 20. Resume Positioning
 
----
+## StayOS — Multi-Property PG / Hostel Management Platform
 
-# File Structure — Backend Only
+A full-stack property management platform supporting:
 
+- Multi-property ownership
+- Role-based access control
+- Tenant management
+- Room allocation
+- Rent tracking
+- Complaint management
+- Financial ledger
+- Redis caching
+- Database optimization
+- Property-level data isolation
+
+### Backend Highlights
+
+- JWT authentication
+- RBAC
+- Multi-property authorization
+- MongoDB + Mongoose
+- REST APIs
+- Centralized error handling
+- Validation
+- Pagination
+- Search/filtering
+- Database indexing
+- Redis caching
+- Financial ledger
+- Rate limiting
+- Audit logging
+
+### Final Architecture Goal
+
+```text
+                    ┌──────────────┐
+                    │    React     │
+                    │   Frontend   │
+                    └──────┬───────┘
+                           │
+                           ▼
+                    ┌──────────────┐
+                    │  Express API │
+                    └──────┬───────┘
+                           │
+             ┌─────────────┼─────────────┐
+             ▼             ▼             ▼
+        ┌─────────┐   ┌─────────┐   ┌──────────┐
+        │  Redis  │   │ MongoDB │   │ Services │
+        └─────────┘   └─────────┘   └──────────┘
 ```
-server/
-├── src/
-│   ├── controllers/
-│   │   ├── auth.controllers.js
-│   │   ├── property.controllers.js
-│   │   ├── room.controllers.js
-│   │   ├── tenant.controllers.js
-│   │   ├── rent.controllers.js
-│   │   └── complaint.controllers.js
-│   │
-│   ├── models/
-│   │   ├── user.models.js
-│   │   ├── property.models.js
-│   │   ├── room.models.js
-│   │   ├── rent.models.js
-│   │   └── complaint.models.js
-│   │
-│   ├── routes/
-│   │   ├── auth.routes.js
-│   │   ├── property.routes.js
-│   │   ├── room.routes.js
-│   │   ├── tenant.routes.js
-│   │   ├── rent.routes.js
-│   │   └── complaint.routes.js
-│   │
-│   ├── middlewares/
-│   │   ├── auth.middlewares.js          # verifyJWT (access token)
-│   │   ├── role.middlewares.js          # verifyRole(["OWNER"]) etc.
-│   │   └── ownership.middlewares.js     # verifyPropertyOwnership, verifyCaretakerAssignment
-│   │
-│   ├── services/
-│   │   ├── rentStatus.services.js       # PENDING -> OVERDUE logic (cron-triggered)
-│   │   └── email.services.js            # verification + reset password emails
-│   │
-│   ├── utils/
-│   │   ├── ApiError.js
-│   │   ├── ApiResponse.js
-│   │   ├── AsyncHandler.js
-│   │   ├── generateTokens.js            # accessToken + refreshToken helpers
-│   │   └── constants.js                 # role enums, status enums
-│   │
-│   ├── config/
-│   │   └── db.js
-│   │
-│   ├── app.js
-│   └── server.js
-│
-├── .env
-├── .env.sample
-├── .gitignore
-├── package.json
-└── README.md
-```
 
 ---
 
-## Build Order
+# Current Milestone
 
-1. **Auth** — register, email verification, login (access + refresh tokens), current-user, logout, change-password, refresh-token endpoint, forgot/reset password
-2. **Property** — CRUD + Owner-only checks
-3. **Room** — CRUD + capacity enforcement
-4. **Tenant** — registration + room assignment logic
-5. **Rent** — record generation + status lifecycle
-6. **Complaint** — raise/track/resolve
+**Phase 1 — Core Backend: COMPLETE**
+
+Before starting Phase 2:
+
+- Test all Phase 1 routes
+- Verify role-based access
+- Verify property isolation
+- Test invalid IDs
+- Test unauthorized access
+- Test edge cases
+- Perform a backend security audit
+
+Then begin **Phase 2 — Engineering Depth**.
