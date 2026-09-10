@@ -9,7 +9,8 @@ import {
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { verifyRole } from "../middlewares/role.middleware.js";
 import {
-    verifyPropertyAccess
+    verifyPropertyAccess,
+    verifyPropertyOwnership
 } from "../middlewares/ownership.middleware.js";
 
 
@@ -19,12 +20,12 @@ const router = Router({
 router.use(verifyJWT);
 
 router.route("/")
-    .get(verifyRole(["OWNER"]),getRooms)
-    .post(verifyRole(["OWNER"]),createRoom)
+    .get(verifyRole(["OWNER"]),verifyPropertyOwnership,getRooms)
+    .post(verifyRole(["OWNER"]),verifyPropertyOwnership,createRoom)
 
 router.route("/:roomId")
     .get(verifyRole(["OWNER","CARETAKER"]),verifyPropertyAccess,getRoomById)
-    .put(verifyRole(["OWNER"]),updateRoom)
-    .delete(verifyRole(["OWNER"]),deleteRoom)
+    .put(verifyRole(["OWNER"]),verifyPropertyOwnership,updateRoom)
+    .delete(verifyRole(["OWNER"]),verifyPropertyOwnership,deleteRoom)
 
 export default router;

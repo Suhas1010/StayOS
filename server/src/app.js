@@ -7,6 +7,7 @@ import propertyRouter from "./routes/property.routes.js";
 import roomRouter from "./routes/room.routes.js";
 import tenantRouter from "./routes/tenant.routes.js";
 import rentRouter from "./routes/rent.routes.js"
+import complaintRouter from "./routes/complaint.routes.js"
 
 const app = express();
 
@@ -44,5 +45,5 @@ app.use("/api/v1/properties", propertyRouter);
 app.use("/api/v1/properties/:propertyId/rooms", roomRouter);
 app.use("/api/v1/properties/:propertyId/tenants", tenantRouter)
 app.use("/api/v1/properties/:propertyId/tenants/:tenantId/rent",rentRouter)
-
+app.use("/api/v1/properties/:propertyId/complaints",complaintRouter)
 export default app;

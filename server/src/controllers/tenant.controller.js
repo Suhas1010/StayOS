@@ -23,6 +23,14 @@ const createTenant = AsyncHandler(async(req,res)=>{
        {
             throw new ApiError(400,"User is not a tenant");
        }
+       const existingTenant = await Tenant.findOne({
+    user: userId,
+    property: propertyId
+});
+
+if (existingTenant) {
+    throw new ApiError(409, "Tenant already exists in this property");
+}
         const tenant = new Tenant({
             user : userId,
             property : propertyId
@@ -53,8 +61,11 @@ const getTenants = AsyncHandler(async(req,res)=>{
 });
 
 const getTenantById = AsyncHandler(async(req,res)=>{
-    const {tenantId} = req.params;
-    const tenant = await Tenant.findById(tenantId);
+    const {propertyId,tenantId} = req.params;
+    const tenant = await Tenant.findOne({
+        _id : tenantId,
+        property : propertyId
+    });
     if(!tenant)
     {
         throw new ApiError(404,"Tenant not found");
@@ -66,9 +77,12 @@ const getTenantById = AsyncHandler(async(req,res)=>{
 });
 
 const updateTenant = AsyncHandler(async(req,res)=>{
-    const {tenantId} = req.params;
+    const {propertyId,tenantId} = req.params;
     const {fullName,email,phone} = req.body;
-    const tenant = await Tenant.findById(tenantId);
+     const tenant = await Tenant.findOne({
+        _id : tenantId,
+        property : propertyId
+    });
     if(!tenant)
     {
         throw new ApiError(404,"Tenant not found");
@@ -89,8 +103,11 @@ const updateTenant = AsyncHandler(async(req,res)=>{
 });
 
 const deleteTenant = AsyncHandler(async(req,res)=>{
-    const {tenantId} = req.params;
-    const tenant = await Tenant.findById(tenantId);
+    const {propertyId,tenantId} = req.params;
+    const tenant = await Tenant.findOne({
+        _id : tenantId,
+        property : propertyId
+    });
     if(!tenant)
     {
         throw new ApiError(404,"Tenant not found");
@@ -116,9 +133,12 @@ const deleteTenant = AsyncHandler(async(req,res)=>{
 });
 
 const assignTenantToRoom = AsyncHandler(async(req,res)=>{
-    const {tenantId} = req.params;
+    const {propertyId,tenantId} = req.params;
     const {roomId} = req.body;
-    const tenant = await Tenant.findById(tenantId);
+     const tenant = await Tenant.findOne({
+        _id : tenantId,
+        property : propertyId
+    });
     if(!tenant)
     {
         throw new ApiError(404,"Tenant not found");
@@ -127,10 +147,6 @@ const assignTenantToRoom = AsyncHandler(async(req,res)=>{
     if(!room)
     {
         throw new ApiError(404,"Room not found");
-    }
-    if(!room.property.equals(tenant.property))
-    {
-        throw new ApiError(403,"Room does not belong to the same property")
     }
      if(tenant.room)
     {
@@ -164,8 +180,11 @@ const assignTenantToRoom = AsyncHandler(async(req,res)=>{
     
 });
 const removeTenantFromRoom = AsyncHandler(async(req,res)=>{
-     const {tenantId} = req.params;
-    const tenant = await Tenant.findById(tenantId);
+     const {propertyId,tenantId} = req.params;
+     const tenant = await Tenant.findOne({
+        _id : tenantId,
+        property : propertyId
+    });
     if(!tenant)
     {
         throw new ApiError(404,"Tenant not found");
@@ -178,10 +197,6 @@ const removeTenantFromRoom = AsyncHandler(async(req,res)=>{
     if(!room)
     {
         throw new ApiError(404,"Room not found");
-    }
-    if(!room.property.equals(tenant.property))
-    {
-        throw new ApiError(403,"Room does not belong to the same property")
     }
     room.occupants  = room.occupants.filter(
         occupantId => !occupantId.equals(tenantId)

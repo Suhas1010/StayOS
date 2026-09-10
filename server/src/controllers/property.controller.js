@@ -92,7 +92,7 @@ const assignCaretaker = AsyncHandler(async(req,res)=>{
         throw new ApiError(403,"This person cannot be assigned as caretaker");
     }
     property.caretaker = user._id;
-    await Property.save();
+    await property.save();
     return res.status(200).json(
         new ApiResponse(200,{},"Caretaker assigned successfully")
     )

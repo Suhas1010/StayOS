@@ -43,8 +43,12 @@ const getRooms = AsyncHandler(async(req,res)=>{
 });
 
 const getRoomById = AsyncHandler(async(req,res)=>{
-    const {roomId} = req.params;
-     const room = await Room.findById(roomId);
+    const {propertyId,roomId} = req.params;
+
+     const room = await Room.findOne({
+        _id : roomId,
+        property : propertyId
+     });
     if(!room)
     {
         throw new ApiError(404,"Room does not exist ")
@@ -55,9 +59,12 @@ const getRoomById = AsyncHandler(async(req,res)=>{
 });
 
 const updateRoom = AsyncHandler(async(req,res)=>{
-    const {roomId} = req.params;
+    const {roomId,propertyId} = req.params;
     const { roomNumber, capacity, rentAmount } = req.body;
-    const room = await Room.findById(roomId);
+    const room = await Room.findOne({
+        _id : roomId,
+        property : propertyId
+     });
 
 if (!room) {
     throw new ApiError(404, "room not found");
@@ -80,12 +87,16 @@ await room.save();
 });
 
 const deleteRoom = AsyncHandler(async(req,res)=>{
-     const {roomId} = req.params;
-     const room = await Room.findByIdAndDelete(roomId);
+     const {roomId,propertyId} = req.params;
+     const room = await Room.findOne({
+        _id : roomId,
+        property : propertyId
+     });
      if(!room)
      {
             throw new ApiError(404, "room not found");
      }
+     await Room.findByIdAndDelete(roomId);
       return res.status(200).json(
          new ApiResponse(200,room,"Room deleted successfully")
       )  

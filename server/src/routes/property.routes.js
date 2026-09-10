@@ -22,12 +22,12 @@ router.route("/")
     .post(verifyRole(["OWNER"]),createProperty)
     .get(verifyRole(["OWNER"]),getProperties)
 
-router.route("/:id")
+router.route("/:propertyId")
     .get(verifyRole(["OWNER","CARETAKER"]),verifyPropertyAccess,getPropertyById)
     .patch(verifyRole(["OWNER"]),verifyPropertyOwnership,updateProperty)
     .delete(verifyRole(["OWNER"]),verifyPropertyOwnership,deleteProperty)
 
-router.route("/:id/caretaker")
+router.route("/:propertyId/caretaker")
  .put(verifyRole(["OWNER"]),verifyPropertyOwnership,assignCaretaker);
 
 
