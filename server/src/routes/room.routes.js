@@ -25,7 +25,7 @@ router.route("/")
 
 router.route("/:roomId")
     .get(verifyRole(["OWNER","CARETAKER"]),verifyPropertyAccess,getRoomById)
-    .put(verifyRole(["OWNER"]),verifyPropertyOwnership,updateRoom)
+    .patch(verifyRole(["OWNER"]),verifyPropertyOwnership,updateRoom)
     .delete(verifyRole(["OWNER"]),verifyPropertyOwnership,deleteRoom)
 
 export default router;

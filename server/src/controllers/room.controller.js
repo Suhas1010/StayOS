@@ -76,10 +76,14 @@ if (capacity < room.occupants.length) {
         "Capacity cannot be less than current occupants"
     );
 }
+    if (roomNumber !== undefined)
     room.roomNumber = roomNumber;
-    room.capacity = capacity;
-    room.rentAmount = rentAmount;
 
+if (capacity !== undefined)
+    room.capacity = capacity;
+
+if (rentAmount !== undefined)
+    room.rentAmount = rentAmount;
 await room.save();
      return res.status(200).json(
          new ApiResponse(200,room,"Updated room successfully")
@@ -96,6 +100,12 @@ const deleteRoom = AsyncHandler(async(req,res)=>{
      {
             throw new ApiError(404, "room not found");
      }
+     if (room.occupants.length > 0) {
+    throw new ApiError(
+        400,
+        "Cannot delete a room with assigned tenants"
+    );
+}
      await Room.findByIdAndDelete(roomId);
       return res.status(200).json(
          new ApiResponse(200,room,"Room deleted successfully")

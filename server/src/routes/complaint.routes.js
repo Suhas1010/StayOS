@@ -14,7 +14,9 @@ import { verifyRole } from "../middlewares/role.middleware.js";
 
 import {
     verifyPropertyAccess,
-    verifyTenantAccess
+    verifyTenantAccess,
+    verifyTenantPropertyAccess,
+    verifyComplaintAccess
 } from "../middlewares/ownership.middleware.js";
 
 
@@ -29,7 +31,7 @@ router.use(verifyJWT);
 router.route("/")
     .post(
         verifyRole(["TENANT"]),
-        verifyTenantAccess,
+        verifyTenantPropertyAccess,
         createComplaint
     )
     .get(
@@ -42,7 +44,7 @@ router.route("/")
 router.route("/my-complaints")
     .get(
         verifyRole(["TENANT"]),
-        verifyTenantAccess,
+        verifyTenantPropertyAccess,
         getMyComplaints
     );
 
@@ -50,7 +52,7 @@ router.route("/my-complaints")
 router.route("/:complaintId")
     .get(
         verifyRole(["OWNER", "CARETAKER", "TENANT"]),
-        verifyTenantAccess,
+         verifyComplaintAccess,
         getComplaintById
     )
     .delete(

@@ -1,5 +1,6 @@
 import Property from "../models/property.models.js";
 import Tenant from "../models/tenant.models.js";
+import Complaint from "../models/complaint.models.js";
 import { ApiError } from "../utils/ApiError.js";
 import { AsyncHandler } from "../utils/AsyncHandler.js";
 
@@ -112,11 +113,63 @@ const verifyTenantAccess = AsyncHandler(async (req, res, next) => {
 
     next();
 });
+const verifyTenantPropertyAccess = AsyncHandler(async (req, res, next) => {
+    const { propertyId } = req.params;
 
+    const tenant = await Tenant.findOne({
+        user: req.user._id,
+        property: propertyId
+    });
 
+    if (!tenant) {
+        throw new ApiError(403, "You are not a tenant of this property");
+    }
+
+    next();
+});
+const verifyComplaintAccess = AsyncHandler(async (req, res, next) => {
+    const { propertyId, complaintId } = req.params;
+
+    const complaint = await Complaint.findOne({
+        _id: complaintId,
+        property: propertyId
+    });
+
+    if (!complaint) {
+        throw new ApiError(404, "Complaint not found");
+    }
+
+    const property = await Property.findById(propertyId);
+
+    if (!property) {
+        throw new ApiError(404, "Property not found");
+    }
+
+    const userId = req.user._id.toString();
+
+    const isOwner = property.owner.toString() === userId;
+
+    const isCaretaker =
+        property.caretaker &&
+        property.caretaker.toString() === userId;
+
+    const isTenant = await Tenant.exists({
+        _id: complaint.tenant,
+        user: req.user._id,
+        property: propertyId
+    });
+
+    if (!isOwner && !isCaretaker && !isTenant) {
+        throw new ApiError(403, "Access denied");
+    }
+
+    next();
+});
 export {
     verifyPropertyOwnership,
     verifyCaretakerAssignment,
     verifyPropertyAccess,
-    verifyTenantAccess
+    verifyTenantAccess,
+    verifyTenantPropertyAccess,
+    verifyComplaintAccess
 };

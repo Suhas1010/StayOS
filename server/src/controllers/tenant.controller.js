@@ -93,9 +93,9 @@ const updateTenant = AsyncHandler(async(req,res)=>{
     {
         throw new ApiError(404,"User not found");
     }
-    user.fullName = fullName;
-    user.email = email;
-    user.phone = phone;
+    if (fullName !== undefined) user.fullName = fullName;
+if (email !== undefined) user.email = email;
+if (phone !== undefined) user.phone = phone;
     await user.save();
      return res.status(200).json(
         new ApiResponse(200,user,"Tenant updated successfully")

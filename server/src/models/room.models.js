@@ -19,7 +19,7 @@ const roomSchema = new mongoose.Schema({
     },
     occupants : {
         type : [mongoose.Schema.Types.ObjectId],
-        ref : "User",
+        ref : "Tenant",
         default : []
     }
 });
