@@ -46,4 +46,14 @@ app.use("/api/v1/properties/:propertyId/rooms", roomRouter);
 app.use("/api/v1/properties/:propertyId/tenants", tenantRouter)
 app.use("/api/v1/properties/:propertyId/tenants/:tenantId/rent",rentRouter)
 app.use("/api/v1/properties/:propertyId/complaints",complaintRouter)
+
+
+app.use((err, req, res, next) => {
+    const statusCode = err.statusCode || 500;
+
+    res.status(statusCode).json({
+        success: false,
+        message: err.message || "Internal Server Error"
+    });
+});
 export default app;
