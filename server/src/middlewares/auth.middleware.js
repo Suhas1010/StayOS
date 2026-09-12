@@ -4,7 +4,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { AsyncHandler } from "../utils/AsyncHandler.js";
 
 const verifyJWT = AsyncHandler(async(req,res,next)=>{
-    const accessToken = req.headers.authorization?.split(" ")[1];
+    const accessToken = req.cookies?.accessToken || req.headers.authorization?.split(" ")[1];
       if (!accessToken) {
         throw new ApiError(401, "Access token is required");
     }

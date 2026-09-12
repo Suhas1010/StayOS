@@ -20,7 +20,7 @@ router.use(verifyJWT);
 
 router.route("/")
     .post(verifyRole(["OWNER"]),createProperty)
-    .get(verifyRole(["OWNER"]),getProperties)
+    .get(verifyRole(["OWNER", "CARETAKER"]),getProperties)
 
 router.route("/:propertyId")
     .get(verifyRole(["OWNER","CARETAKER"]),verifyPropertyAccess,getPropertyById)

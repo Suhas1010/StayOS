@@ -20,7 +20,7 @@ const router = Router({
 router.use(verifyJWT);
 
 router.route("/")
-    .get(verifyRole(["OWNER"]),verifyPropertyOwnership,getRooms)
+    .get(verifyRole(["OWNER", "CARETAKER"]),verifyPropertyAccess,getRooms)
     .post(verifyRole(["OWNER"]),verifyPropertyOwnership,createRoom)
 
 router.route("/:roomId")

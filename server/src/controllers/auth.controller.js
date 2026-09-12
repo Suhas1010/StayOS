@@ -7,13 +7,16 @@ import { sendVerificationEmail,sendPasswordResetEmail} from "../services/email.s
 import { generateAccessAndRefreshTokens } from "../utils/generateToken.js";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
+import { AvailableUserRoles } from "../utils/constants.js";
 const registerUser = AsyncHandler(async (req, res) => {
 
-    const { fullName, email, password, phone } = req.body;
-    const role = "TENANT";
-    if (!fullName || !email || !password || !phone || !role) {
+    const { fullName, email, password, phone, role = "TENANT" } = req.body;
+    if (!fullName || !email || !password || !phone) {
     throw new ApiError(400, "All fields are required");
 }
+    if (!AvailableUserRoles.includes(role)) {
+        throw new ApiError(400, "Invalid role provided");
+    }
       const existingUser = await User.findOne({ email });
 
     if (existingUser) {

@@ -1,5 +1,9 @@
 import Property from "../models/property.models.js";
-import User from "../models/user.models.js"
+import User from "../models/user.models.js";
+import Room from "../models/room.models.js";
+import Tenant from "../models/tenant.models.js";
+import Rent from "../models/rent.models.js";
+import Complaint from "../models/complaint.models.js";
 import { AsyncHandler } from "../utils/AsyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -28,7 +32,7 @@ const createProperty = AsyncHandler(async(req,res)=>{
 });
 const getProperties = AsyncHandler(async(req,res)=>{
     const properties = await Property.find({
-        owner : req.user._id
+        $or: [{ owner: req.user._id }, { caretaker: req.user._id }]
     });
     if(properties.length === 0)
     {
@@ -99,6 +103,12 @@ const assignCaretaker = AsyncHandler(async(req,res)=>{
 });
 const deleteProperty  = AsyncHandler(async(req,res)=>{
     const {propertyId} = req.params;
+    
+    await Room.deleteMany({ property: propertyId });
+    await Tenant.deleteMany({ property: propertyId });
+    await Rent.deleteMany({ property: propertyId });
+    await Complaint.deleteMany({ property: propertyId });
+
     const property = await Property.findByIdAndDelete(propertyId);
     if(!property)
     {

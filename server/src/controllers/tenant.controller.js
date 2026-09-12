@@ -2,6 +2,8 @@ import Room from "../models/room.models.js";
 import User from "../models/user.models.js";
 import Property from "../models/property.models.js";
 import Tenant from "../models/tenant.models.js";
+import Rent from "../models/rent.models.js";
+import Complaint from "../models/complaint.models.js";
 import { AsyncHandler } from "../utils/AsyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -94,8 +96,11 @@ const updateTenant = AsyncHandler(async(req,res)=>{
         throw new ApiError(404,"User not found");
     }
     if (fullName !== undefined) user.fullName = fullName;
-if (email !== undefined) user.email = email;
-if (phone !== undefined) user.phone = phone;
+    if (email !== undefined && user.email !== email) {
+        user.email = email;
+        user.isEmailVerified = false;
+    }
+    if (phone !== undefined) user.phone = phone;
     await user.save();
      return res.status(200).json(
         new ApiResponse(200,user,"Tenant updated successfully")
@@ -127,6 +132,8 @@ const deleteTenant = AsyncHandler(async(req,res)=>{
         }
     }
     await Tenant.findByIdAndDelete(tenantId);
+    await Rent.deleteMany({ tenant: tenantId });
+    await Complaint.deleteMany({ tenant: tenantId });
      return res.status(200).json(
         new ApiResponse(200,tenant,"Tenant deleted successfully")
     );
@@ -147,6 +154,10 @@ const assignTenantToRoom = AsyncHandler(async(req,res)=>{
     if(!room)
     {
         throw new ApiError(404,"Room not found");
+    }
+    if(!room.property.equals(propertyId))
+    {
+        throw new ApiError(400, "Room does not belong to this property");
     }
      if(tenant.room)
     {
