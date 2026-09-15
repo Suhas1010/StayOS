@@ -15,7 +15,8 @@ const roomSchema = new mongoose.Schema({
     },
     property :{
         type : mongoose.Schema.Types.ObjectId,
-        ref : "Property"
+        ref : "Property",
+        index: true
     },
     occupants : {
         type : [mongoose.Schema.Types.ObjectId],

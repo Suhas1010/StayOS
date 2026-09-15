@@ -4,12 +4,14 @@ const complaintSchema = new mongoose.Schema({
     tenant :{
         type : mongoose.Schema.Types.ObjectId,
         ref : "Tenant",
-        required : true
+        required : true,
+        index : true
     },
     property :{
         type : mongoose.Schema.Types.ObjectId,
         ref : "Property",
-        required : true
+        required : true,
+        index : true
     },
     title :{
         type : String,

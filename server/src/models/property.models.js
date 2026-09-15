@@ -18,12 +18,14 @@ const propertySchema = new mongoose.Schema({
 caretaker: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
-    default: null
+    default: null,
+    index : true
 },
     owner :{
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
-        required: true
+        required: true,
+        index : true
     },
     address: {
     street: {

@@ -36,6 +36,17 @@ const createRent = AsyncHandler(async(req,res)=>{
 
 const getRent = AsyncHandler(async(req,res)=>{ 
     const { propertyId, tenantId } = req.params;
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+
+    if(page < 1 || limit < 1 || limit > 100)
+    {
+        throw new ApiError(400,"Invalid pagination parameters");
+    }
+
+    const skip = (page - 1) * limit;
+
+    const { status } = req.query;
     const property = await Property.findById(propertyId);
     if(!property)
     {
@@ -51,16 +62,33 @@ const getRent = AsyncHandler(async(req,res)=>{
     {
         throw new ApiError(403, "This property does not belong to the tenant");
     }
-    const rent = await Rent.find({
-        tenant : tenantId,
+    const filter = {
+         tenant : tenantId,
         property : propertyId
-    });
-    if(rent.length === 0)
+    }
+     if(status)
+    {
+        filter.status = status;
+    }
+
+    const rent = await Rent.find(filter)
+                           .skip(skip)
+                           .limit(limit);
+      const total = await Rent.countDocuments(filter);
+
+    const totalPages = Math.ceil(total / limit);
+
+    if(total === 0)
     {
         throw new ApiError(404, "Rent not found");
     }
     return res.status(200).json(
-    new ApiResponse(200, rent, "Rent fetched successfully")
+    new ApiResponse(200, {rent,pagination :{
+         page,
+         limit,
+         total,
+         totalPages
+    }}, "Rent fetched successfully")
 );
 })
 

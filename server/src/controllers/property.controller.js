@@ -31,15 +31,51 @@ const createProperty = AsyncHandler(async(req,res)=>{
     );
 });
 const getProperties = AsyncHandler(async(req,res)=>{
-    const properties = await Property.find({
-        $or: [{ owner: req.user._id }, { caretaker: req.user._id }]
-    });
-    if(properties.length === 0)
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    if(page < 1 || limit < 1 || limit > 100)
+    {
+        throw new ApiError(400,"Invalid pagination parameters");
+    }
+    const skip = (page-1) * limit;
+    const {search,type} = req.query;
+    const filter = {
+        $or :[
+           { owner : req.user._id},
+           {caretaker : req.user._id}
+        ]
+    }
+      if(search)
+    {
+        filter.name = {
+            $regex: search,
+            $options: "i"
+        };
+    }
+    if(type)
+    {
+        filter.type = type;
+    }
+      const properties = await Property.find(filter)
+        .skip(skip)
+        .limit(limit);
+        const total = await Property.countDocuments(filter);
+
+    const totalPages = Math.ceil(total / limit);
+    if(total === 0)
     {
         throw new ApiError(404,"Properties not found");
     }
     return res.status(200).json(
-        new ApiResponse(200,properties,"Properties fetched successfully")
+        new ApiResponse(200, {
+                properties,
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    totalPages
+                }
+            },"Properties fetched successfully")
     )
 
 });

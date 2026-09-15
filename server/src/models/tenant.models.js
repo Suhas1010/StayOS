@@ -4,12 +4,14 @@ const tenantSchema = new mongoose.Schema({
     user :{
         type : mongoose.Schema.Types.ObjectId,
         ref : "User",
-        required : true
+        required : true,
+        index: true
     },
     property : {
         type : mongoose.Schema.Types.ObjectId,
         ref : "Property",
-        required : true
+        required : true,
+        index: true
     },
     room :{
         type : mongoose.Schema.Types.ObjectId,
@@ -17,6 +19,9 @@ const tenantSchema = new mongoose.Schema({
         default : null
     }
 },{ timestamps: true })
-
+tenantSchema.index({
+    user: 1,
+    property: 1
+});
 const Tenant = mongoose.model("Tenant",tenantSchema);
 export default Tenant;

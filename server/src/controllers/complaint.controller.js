@@ -52,7 +52,17 @@ const createComplaint = AsyncHandler(async(req,res)=>{
 
 
 const getComplaint = AsyncHandler(async(req,res)=>{
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
 
+    if(page < 1 || limit < 1 || limit > 100)
+    {
+        throw new ApiError(400,"Invalid pagination parameters");
+    }
+
+    const skip = (page - 1) * limit;
+
+    const {search,status} = req.query;
     const {propertyId} = req.params;
 
     const property = await Property.findById(propertyId);
@@ -61,15 +71,54 @@ const getComplaint = AsyncHandler(async(req,res)=>{
     {
         throw new ApiError(404,"property not found");
     }
+    const filter  = {
+         property: propertyId
+    };
+    if(search)
+    {
+        filter.$or = [
+            {
+                title :{
+                    $regex : search,
+                    $options : "i"
+                }
+            },
+            {
+                description: {
+                    $regex: search,
+                    $options: "i"
+                }
+            }
+        ]
+    }
+       if(status)
+    {
+        filter.status = status;
+    }
 
-    const complaints = await Complaint.find({
-        property: propertyId
-    });
+    const complaints = await Complaint.find(filter)
+        .skip(skip)
+        .limit(limit);
+
+    const total = await Complaint.countDocuments(filter);
+
+    const totalPages = Math.ceil(total / limit);
+    if(total === 0)
+    {
+        throw new ApiError(404,"No complaints found");
+    }
 
     return res.status(200).json(
         new ApiResponse(
             200,
-            complaints,
+           { complaints,
+            pagination :{
+                   page,
+                    limit,
+                    total,
+                    totalPages
+            }
+           },
             "complaints fetched successfully"
         )
     );
@@ -109,6 +158,18 @@ const getMyComplaints = AsyncHandler(async(req,res)=>{
 
     const {propertyId} = req.params;
 
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+
+    if(page < 1 || limit < 1 || limit > 100)
+    {
+        throw new ApiError(400,"Invalid pagination parameters");
+    }
+
+    const skip = (page - 1) * limit;
+
+    const {search,status} = req.query;
+
     const property = await Property.findById(propertyId);
 
     if(!property)
@@ -126,20 +187,43 @@ const getMyComplaints = AsyncHandler(async(req,res)=>{
         throw new ApiError(404,"Tenant not found");
     }
 
-    if(!tenant.property.equals(propertyId))
-    {
-        throw new ApiError(
-            403,
-            "This property does not belong to the tenant"
-        );
-    }
-
-    const complaints = await Complaint.find({
+    const filter = {
         tenant: tenant._id,
         property: propertyId
-    });
+    };
 
-    if(complaints.length === 0)
+    if(search)
+    {
+        filter.$or = [
+            {
+                title: {
+                    $regex: search,
+                    $options: "i"
+                }
+            },
+            {
+                description: {
+                    $regex: search,
+                    $options: "i"
+                }
+            }
+        ];
+    }
+
+    if(status)
+    {
+        filter.status = status;
+    }
+
+    const complaints = await Complaint.find(filter)
+        .skip(skip)
+        .limit(limit);
+
+    const total = await Complaint.countDocuments(filter);
+
+    const totalPages = Math.ceil(total / limit);
+
+    if(total === 0)
     {
         throw new ApiError(404,"Complaints not found");
     }
@@ -147,12 +231,19 @@ const getMyComplaints = AsyncHandler(async(req,res)=>{
     return res.status(200).json(
         new ApiResponse(
             200,
-            complaints,
+            {
+                complaints,
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    totalPages
+                }
+            },
             "Complaints of the user fetched successfully"
         )
     );
 });
-
 
 const updateComplaintStatus = AsyncHandler(async(req,res)=>{
 

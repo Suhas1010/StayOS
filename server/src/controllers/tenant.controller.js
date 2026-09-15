@@ -45,20 +45,54 @@ if (existingTenant) {
 
 const getTenants = AsyncHandler(async(req,res)=>{
       const {propertyId}  = req.params;
+      const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    if (page < 1 || limit < 1 || limit > 100) {
+    throw new ApiError(400, "Invalid pagination parameters");
+    }   
+    const skip = (page - 1) * limit;
+    const { search, room } = req.query;
       const property = await Property.findById(propertyId);
         if(!property)
         {
             throw new ApiError(404,"Property not found");
         }
-        const tenants  = await Tenant.find({
-            property : propertyId
-        });
-        if(tenants.length === 0)
-        {
-            throw new ApiError(404,"tenants not found");
-        }
+        const filter = {
+             property: propertyId
+        };
+
+    if (room) {
+         filter.room = room;
+    }
+    if (search) {
+    const users = await User.find({
+        $or: [
+            { fullName: { $regex: search, $options: "i" } },
+            { email: { $regex: search, $options: "i" } },
+            { phone: { $regex: search, $options: "i" } }
+        ]
+    }).select("_id");
+
+    filter.user = {
+        $in: users.map(user => user._id)
+    };
+}
+        const tenants = await Tenant.find(filter)
+    .skip(skip)
+    .limit(limit);
+    const total = await Tenant.countDocuments(filter);
+    const totalPages = Math.ceil(total / limit);
+        if(total === 0)
+    {
+        throw new ApiError(404, "No tenants found");
+    }
         return res.status(200).json(
-        new ApiResponse(200,tenants,"Tenants fetched successfully")
+        new ApiResponse(200,{tenants, pagination : {
+                page,
+                limit,
+                total,
+                totalPages
+            }},"Tenants fetched successfully")
     )
 });
 
