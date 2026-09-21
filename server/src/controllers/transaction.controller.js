@@ -106,16 +106,13 @@ const getTransactions = AsyncHandler(async(req,res)=>{
         filter.paymentMethod  = paymentMethod;
     }
      const transactions = await Transaction.find(filter)
+                               .sort({paymentDate : -1})
                                .skip(skip)
                                .limit(limit);
      const total = await Transaction.countDocuments(filter);
 
-    const totalPages = Math.ceil(total / limit);
+    const totalPages = Math.ceil(total / limit) || 0;
 
-    if(total === 0)
-    {
-        throw new ApiError(404, "Transaction not found");
-    }
     return res.status(200).json(
     new ApiResponse(200, {transactions,pagination :{
          page,
@@ -224,12 +221,8 @@ const getMyTransactions = AsyncHandler(async(req,res)=>{
                                .limit(limit);
      const total = await Transaction.countDocuments(filter);
 
-    const totalPages = Math.ceil(total / limit);
+    const totalPages = Math.ceil(total / limit) || 0;
 
-    if(total === 0)
-    {
-        throw new ApiError(404, "Transaction not found");
-    }
     return res.status(200).json(
     new ApiResponse(200, {transactions,pagination :{
          page,

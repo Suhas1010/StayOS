@@ -192,7 +192,27 @@ Instead of using Tailwind classes that hide real CSS behind abbreviations, StayO
 
 ---
 
-## 7. How to Run and Experiment
+## 7. Financial & Transaction Workflow: From Invoice to Verified Receipt
+
+StayOS separates rent generation from transaction auditing:
+
+1. **Rent Invoicing (`rentApi`)**:
+   - Stores the expected payment obligation (`amount`, `dueDate`, `status: "PENDING" | "OVERDUE" | "PAID"`).
+2. **Payment Execution (`transactionApi.createTransaction`)**:
+   - When a tenant pays or an owner records payment, a `Transaction` is logged with:
+     - `amount`: must match the rent invoice.
+     - `paymentMethod`: `UPI`, `CASH`, `CARD`, or `BANK_TRANSFER`.
+     - `paymentDate`: timestamp of the actual transfer.
+     - `transactionId`: external reference (e.g. UPI UTR number, Cheque No, Bank Ref).
+   - In the backend, creating the transaction automatically updates the rent's status to `PAID`.
+3. **Auditing & Receipts**:
+   - The UI provides interactive tab switching between invoice summaries and full transaction histories.
+   - Any paid record offers a printable, verified receipt with cryptographic-style badges and references.
+
+---
+
+## 8. How to Run and Experiment
+
 
 1. **Start the Backend Server**:
    ```bash

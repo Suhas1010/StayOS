@@ -52,6 +52,15 @@ app.use(
     "/api/v1/properties/:propertyId/tenants/:tenantId/rent/:rentId/transactions",
     transactionRouter
 );
+app.use(
+    "/api/v1/properties/:propertyId/tenants/:tenantId/transactions",
+    transactionRouter
+);
+app.use(
+    "/api/v1/properties/:propertyId/transactions",
+    transactionRouter
+);
+
 
 app.use((err, req, res, next) => {
     const statusCode = err.statusCode || 500;
