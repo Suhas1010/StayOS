@@ -97,16 +97,17 @@ const getComplaint = AsyncHandler(async(req,res)=>{
     }
 
     const complaints = await Complaint.find(filter)
+        .populate({
+            path: "tenant",
+            populate: { path: "user", select: "fullName email phone" }
+        })
+        .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit);
 
     const total = await Complaint.countDocuments(filter);
 
-    const totalPages = Math.ceil(total / limit);
-    if(total === 0)
-    {
-        throw new ApiError(404,"No complaints found");
-    }
+    const totalPages = Math.ceil(total / limit) || 0;
 
     return res.status(200).json(
         new ApiResponse(
@@ -221,12 +222,7 @@ const getMyComplaints = AsyncHandler(async(req,res)=>{
 
     const total = await Complaint.countDocuments(filter);
 
-    const totalPages = Math.ceil(total / limit);
-
-    if(total === 0)
-    {
-        throw new ApiError(404,"Complaints not found");
-    }
+    const totalPages = Math.ceil(total / limit) || 0;
 
     return res.status(200).json(
         new ApiResponse(

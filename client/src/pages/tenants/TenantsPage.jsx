@@ -102,27 +102,43 @@ export const TenantsPage = () => {
             <thead>
               <tr>
                 <th>Tenant ID</th>
-                <th>User Account ID</th>
+                <th>Resident</th>
                 <th>Assigned Room</th>
                 <th>Registered Date</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {tenants.map((tenant) => (
-                <tr key={tenant._id}>
-                  <td style={{ fontFamily: "monospace", fontSize: "0.85rem", fontWeight: "600" }}>
-                    #{tenant._id.slice(-6)}
-                  </td>
-                  <td>{tenant.user}</td>
-                  <td>
-                    {tenant.room ? (
-                      <Badge variant="success">Room Assigned</Badge>
-                    ) : (
-                      <Badge variant="warning">Unassigned</Badge>
-                    )}
-                  </td>
-                  <td>{new Date(tenant.createdAt).toLocaleDateString()}</td>
+              {tenants.map((tenant) => {
+                const userName = typeof tenant.user === "object" ? tenant.user?.fullName : tenant.user;
+                const userEmail = typeof tenant.user === "object" ? tenant.user?.email : null;
+                const userPhone = typeof tenant.user === "object" ? tenant.user?.phone : null;
+                const roomNumber = typeof tenant.room === "object" ? tenant.room?.roomNumber : null;
+
+                return (
+                  <tr key={tenant._id}>
+                    <td style={{ fontFamily: "monospace", fontSize: "0.85rem", fontWeight: "600" }}>
+                      #{tenant._id.slice(-6)}
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: "600" }}>{userName || "Resident"}</div>
+                      {userEmail && (
+                        <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>{userEmail}</div>
+                      )}
+                      {userPhone && (
+                        <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{userPhone}</div>
+                      )}
+                    </td>
+                    <td>
+                      {tenant.room ? (
+                        <Badge variant="success">
+                          {roomNumber ? `Room #${roomNumber}` : "Room Assigned"}
+                        </Badge>
+                      ) : (
+                        <Badge variant="warning">Unassigned</Badge>
+                      )}
+                    </td>
+                    <td>{new Date(tenant.createdAt).toLocaleDateString()}</td>
                   <td>
                     <Link
                       to={`/properties/${selectedPropertyId}`}
@@ -132,8 +148,9 @@ export const TenantsPage = () => {
                       <ArrowRight size={14} />
                     </Link>
                   </td>
-                </tr>
-              ))}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

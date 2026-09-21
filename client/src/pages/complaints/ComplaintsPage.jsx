@@ -3,6 +3,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 import { propertyApi } from "../../api/property.api";
 import { complaintApi } from "../../api/complaint.api";
+import { tenantApi } from "../../api/tenant.api";
 import { Badge } from "../../components/common/Badge";
 import { Modal } from "../../components/common/Modal";
 import { Spinner } from "../../components/common/Spinner";
@@ -42,8 +43,17 @@ export const ComplaintsPage = () => {
       try {
         if (isTenant) {
           const stayRes = await tenantApi.getMyStay();
-          if (stayRes.data && stayRes.data.property) {
-            setSelectedPropertyId(stayRes.data.property._id);
+          const stay = stayRes?.data !== undefined ? stayRes.data : stayRes;
+          if (stay && stay.property) {
+            const prop =
+              typeof stay.property === "object"
+                ? stay.property
+                : { _id: stay.property, name: "Assigned Property" };
+            setProperties([prop]);
+            setSelectedPropertyId(prop._id);
+          } else {
+            setProperties([]);
+            setSelectedPropertyId("");
           }
         } else {
           const res = await propertyApi.getProperties();
@@ -54,13 +64,16 @@ export const ComplaintsPage = () => {
           }
         }
       } catch (err) {
-        console.error(err);
+        console.error("Failed to load property data:", err);
       } finally {
         setLoading(false);
       }
     };
-    initData();
-  }, [isTenant]);
+
+    if (user) {
+      initData();
+    }
+  }, [user, isTenant]);
 
   // Load complaints for selected property
   const loadComplaints = async () => {
@@ -146,14 +159,15 @@ export const ComplaintsPage = () => {
       {/* Filter and Search Bar */}
       <div className="filter-bar">
         <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
-          {properties.length > 0 && (
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>Property:</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>Property:</span>
+            {properties.length > 0 ? (
               <select
                 className="form-select"
                 style={{ minWidth: "220px" }}
                 value={selectedPropertyId}
                 onChange={(e) => setSelectedPropertyId(e.target.value)}
+                disabled={isTenant && properties.length <= 1}
               >
                 {properties.map((p) => (
                   <option key={p._id} value={p._id}>
@@ -161,8 +175,12 @@ export const ComplaintsPage = () => {
                   </option>
                 ))}
               </select>
-            </div>
-          )}
+            ) : (
+              <span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                {isTenant ? "No Property Assigned" : "Loading Properties..."}
+              </span>
+            )}
+          </div>
 
           <select
             className="form-select"
@@ -251,6 +269,45 @@ export const ComplaintsPage = () => {
       >
         <form onSubmit={handleRaiseComplaint}>
           <div className="form-group">
+            <label className="form-label">Property / Residence</label>
+            {properties.length > 1 ? (
+              <select
+                className="form-select"
+                value={selectedPropertyId}
+                onChange={(e) => setSelectedPropertyId(e.target.value)}
+                required
+              >
+                {properties.map((p) => (
+                  <option key={p._id} value={p._id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            ) : properties.length === 1 ? (
+              <input
+                type="text"
+                className="form-input"
+                readOnly
+                value={properties[0].name}
+                style={{ background: "rgba(255, 255, 255, 0.04)", cursor: "not-allowed" }}
+              />
+            ) : (
+              <div
+                style={{
+                  padding: "0.75rem",
+                  background: "var(--danger-light)",
+                  border: "1px solid rgba(239, 68, 68, 0.3)",
+                  borderRadius: "var(--radius-md)",
+                  color: "#f87171",
+                  fontSize: "0.85rem",
+                }}
+              >
+                You are not assigned to a property yet. Please contact management before raising tickets.
+              </div>
+            )}
+          </div>
+
+          <div className="form-group">
             <label className="form-label">Issue Title</label>
             <input
               type="text"
@@ -277,7 +334,11 @@ export const ComplaintsPage = () => {
             <button type="button" className="btn btn-outline" onClick={() => setIsModalOpen(false)}>
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary">
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={!selectedPropertyId}
+            >
               Submit Complaint
             </button>
           </div>

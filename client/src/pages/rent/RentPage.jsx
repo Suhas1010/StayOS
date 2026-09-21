@@ -15,12 +15,12 @@ import {
   Calendar,
   History,
   Receipt,
-  FileText,
   Printer,
-  DollarSign,
-  Tag,
-  Hash,
   ShieldCheck,
+  Plus,
+  Trash2,
+  Filter,
+  AlertCircle,
 } from "lucide-react";
 
 export const RentPage = () => {
@@ -35,6 +35,7 @@ export const RentPage = () => {
   const [selectedPropertyId, setSelectedPropertyId] = useState("");
   const [tenants, setTenants] = useState([]);
   const [selectedTenantId, setSelectedTenantId] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL"); // ALL | PENDING | PAID | OVERDUE
 
   // Data states
   const [rentRecords, setRentRecords] = useState([]);
@@ -42,6 +43,14 @@ export const RentPage = () => {
   const [ledger, setLedger] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
+
+  // Create Rent Modal state
+  const [isCreateRentModalOpen, setIsCreateRentModalOpen] = useState(false);
+  const [rentForm, setRentForm] = useState({
+    amount: "",
+    dueDate: "",
+  });
+  const [isCreatingRent, setIsCreatingRent] = useState(false);
 
   // Payment modal states
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -64,9 +73,15 @@ export const RentPage = () => {
       try {
         if (isTenant) {
           const stayRes = await tenantApi.getMyStay();
-          if (stayRes.data && stayRes.data.property) {
-            setSelectedPropertyId(stayRes.data.property._id);
-            setSelectedTenantId(stayRes.data._id);
+          const stay = stayRes.data;
+          if (stay && stay.property) {
+            const prop =
+              typeof stay.property === "object"
+                ? stay.property
+                : { _id: stay.property, name: "Assigned Property" };
+            setSelectedPropertyId(prop._id);
+            setSelectedTenantId(stay._id);
+            setProperties([prop]);
           }
         } else {
           const res = await propertyApi.getProperties();
@@ -82,8 +97,11 @@ export const RentPage = () => {
         setLoading(false);
       }
     };
-    initData();
-  }, [isTenant]);
+
+    if (user) {
+      initData();
+    }
+  }, [user, isTenant]);
 
   // Load tenants when property is selected (Owner & Caretaker)
   useEffect(() => {
@@ -131,41 +149,81 @@ export const RentPage = () => {
     }
   }, [selectedPropertyId, selectedTenantId, isTenant]);
 
-  // Load rent, ledger, and transactions when selection changes
-  useEffect(() => {
+  // Load rent, ledger, and transactions when selection or filter changes
+  const loadFinancialData = useCallback(async () => {
     if (!selectedPropertyId) return;
     if (!isTenant && !selectedTenantId) return;
 
-    const loadFinancialData = async () => {
-      setLoading(true);
-      try {
-        const rentRes = await rentApi.getRent(
-          selectedPropertyId,
-          selectedTenantId
-        );
-        setRentRecords(rentRes.data?.rent || []);
-      } catch {
-        setRentRecords([]);
+    setLoading(true);
+    try {
+      const params = {};
+      if (statusFilter !== "ALL") {
+        params.status = statusFilter;
       }
+      const rentRes = await rentApi.getRent(
+        selectedPropertyId,
+        selectedTenantId,
+        params
+      );
+      setRentRecords(rentRes.data?.rent || []);
+    } catch {
+      setRentRecords([]);
+    }
 
-      try {
-        const ledgerRes = await rentApi.getLedger(
-          selectedPropertyId,
-          selectedTenantId
-        );
-        setLedger(ledgerRes.data);
-      } catch {
-        setLedger(null);
-      } finally {
-        setLoading(false);
-      }
+    try {
+      const ledgerRes = await rentApi.getLedger(
+        selectedPropertyId,
+        selectedTenantId
+      );
+      setLedger(ledgerRes.data);
+    } catch {
+      setLedger(null);
+    } finally {
+      setLoading(false);
+    }
 
-      // Also refresh transactions
-      fetchTransactions();
-    };
+    fetchTransactions();
+  }, [selectedPropertyId, selectedTenantId, isTenant, statusFilter, fetchTransactions]);
 
+  useEffect(() => {
     loadFinancialData();
-  }, [selectedPropertyId, selectedTenantId, isTenant, fetchTransactions]);
+  }, [loadFinancialData]);
+
+  // Create Rent Handler (Owner/Caretaker)
+  const handleCreateRentInvoice = async (e) => {
+    e.preventDefault();
+    if (!selectedPropertyId || !selectedTenantId) return;
+
+    setIsCreatingRent(true);
+    try {
+      await rentApi.createRent(selectedPropertyId, selectedTenantId, {
+        amount: Number(rentForm.amount),
+        dueDate: rentForm.dueDate,
+      });
+
+      showToast("Rent invoice generated successfully!", "success");
+      setIsCreateRentModalOpen(false);
+      setRentForm({ amount: "", dueDate: "" });
+      loadFinancialData();
+    } catch (err) {
+      showToast(err.friendlyMessage || "Failed to create rent invoice", "error");
+    } finally {
+      setIsCreatingRent(false);
+    }
+  };
+
+  // Delete Rent Handler (Owner only)
+  const handleDeleteRent = async (rentId) => {
+    if (!window.confirm("Are you sure you want to delete this rent invoice?")) return;
+
+    try {
+      await rentApi.deleteRent(selectedPropertyId, selectedTenantId, rentId);
+      showToast("Rent invoice deleted", "success");
+      loadFinancialData();
+    } catch (err) {
+      showToast(err.friendlyMessage || "Failed to delete rent invoice", "error");
+    }
+  };
 
   // Open Payment Modal
   const openPaymentModal = (rent) => {
@@ -201,21 +259,8 @@ export const RentPage = () => {
       setIsPaymentModalOpen(false);
       setSelectedRentForPayment(null);
 
-      // Refresh rent list & ledger
-      const rentRes = await rentApi.getRent(
-        selectedPropertyId,
-        selectedTenantId
-      );
-      setRentRecords(rentRes.data?.rent || []);
-
-      const ledgerRes = await rentApi.getLedger(
-        selectedPropertyId,
-        selectedTenantId
-      );
-      setLedger(ledgerRes.data);
-
-      // Refresh transactions
-      fetchTransactions();
+      // Refresh all data
+      loadFinancialData();
     } catch (err) {
       showToast(err.friendlyMessage || "Failed to record payment", "error");
     } finally {
@@ -225,14 +270,12 @@ export const RentPage = () => {
 
   // Open Receipt Modal
   const openReceiptModal = (item) => {
-    // If it's already a full transaction
     if (item.paymentMethod && item.amount) {
       setSelectedReceipt(item);
       setIsReceiptModalOpen(true);
       return;
     }
 
-    // If it's a paid rent record, find the associated transaction in transactions list
     const matched = transactions.find(
       (tx) => tx.rent === item._id || tx.rent?._id === item._id
     );
@@ -240,7 +283,6 @@ export const RentPage = () => {
       setSelectedReceipt(matched);
       setIsReceiptModalOpen(true);
     } else {
-      // Create synthetic receipt view from rent details
       setSelectedReceipt({
         _id: item._id,
         amount: item.amount,
@@ -265,53 +307,87 @@ export const RentPage = () => {
               : "Financial accounting ledger, rent invoicing, and transaction auditing."}
           </p>
         </div>
+
+        {/* Generate Invoice button for Owner / Caretaker */}
+        {(isOwner || isCaretaker) && selectedTenantId && (
+          <div className="page-header-actions">
+            <button
+              onClick={() => {
+                setRentForm({ amount: "", dueDate: "" });
+                setIsCreateRentModalOpen(true);
+              }}
+              className="btn btn-primary"
+            >
+              <Plus size={16} />
+              <span>Generate Rent Invoice</span>
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Selectors for Owner / Caretaker */}
-      {(isOwner || isCaretaker) && (
-        <div className="filter-bar">
-          <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
-                Property:
-              </span>
-              <select
-                className="form-select"
-                style={{ minWidth: "220px" }}
-                value={selectedPropertyId}
-                onChange={(e) => setSelectedPropertyId(e.target.value)}
-              >
-                {properties.map((p) => (
-                  <option key={p._id} value={p._id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+      {/* Selectors & Filters */}
+      <div className="filter-bar">
+        <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
+          {(isOwner || isCaretaker) && (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+                  Property:
+                </span>
+                <select
+                  className="form-select"
+                  style={{ minWidth: "200px" }}
+                  value={selectedPropertyId}
+                  onChange={(e) => setSelectedPropertyId(e.target.value)}
+                >
+                  {properties.map((p) => (
+                    <option key={p._id} value={p._id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
-                Tenant:
-              </span>
-              <select
-                className="form-select"
-                style={{ minWidth: "240px" }}
-                value={selectedTenantId}
-                onChange={(e) => setSelectedTenantId(e.target.value)}
-                disabled={tenants.length === 0}
-              >
-                {tenants.map((t) => (
-                  <option key={t._id} value={t._id}>
-                    {t.user?.fullName
-                      ? `${t.user.fullName} (#${t._id.slice(-6)})`
-                      : `Tenant ID #${t._id.slice(-6)}`}
-                  </option>
-                ))}
-              </select>
-            </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+                  Tenant:
+                </span>
+                <select
+                  className="form-select"
+                  style={{ minWidth: "240px" }}
+                  value={selectedTenantId}
+                  onChange={(e) => setSelectedTenantId(e.target.value)}
+                  disabled={tenants.length === 0}
+                >
+                  {tenants.map((t) => (
+                    <option key={t._id} value={t._id}>
+                      {t.user?.fullName
+                        ? `${t.user.fullName} ${t.room?.roomNumber ? `(Room #${t.room.roomNumber})` : `(#${t._id.slice(-6)})`}`
+                        : `Tenant ID #${t._id.slice(-6)}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
+
+          {/* Status Filter */}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <Filter size={15} color="var(--text-muted)" />
+            <select
+              className="form-select"
+              style={{ minWidth: "150px" }}
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="ALL">All Invoices</option>
+              <option value="PENDING">Pending Only</option>
+              <option value="OVERDUE">Overdue Only</option>
+              <option value="PAID">Paid Only</option>
+            </select>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Aggregated Ledger Metrics */}
       {ledger && (
@@ -335,8 +411,14 @@ export const RentPage = () => {
             </span>
           </div>
           <div className="ledger-metric">
-            <h4>Outstanding Balance</h4>
+            <h4>Overdue Rent</h4>
             <span className="amount" style={{ color: "#f87171" }}>
+              ₹{ledger.totalOverdue?.toLocaleString() || 0}
+            </span>
+          </div>
+          <div className="ledger-metric">
+            <h4>Outstanding Balance</h4>
+            <span className="amount" style={{ color: "#ef4444", fontWeight: "800" }}>
               ₹{ledger.outstanding?.toLocaleString() || 0}
             </span>
           </div>
@@ -378,8 +460,10 @@ export const RentPage = () => {
               description={
                 isTenant
                   ? "You do not have any rent invoices registered for this stay."
-                  : "No rent records have been generated for the selected tenant."
+                  : "No rent records match your current filter. Click '+ Generate Rent Invoice' to create one."
               }
+              actionText={(isOwner || isCaretaker) ? "+ Generate Invoice" : null}
+              onAction={() => setIsCreateRentModalOpen(true)}
             />
           ) : (
             <div className="table-container fade-in">
@@ -418,26 +502,40 @@ export const RentPage = () => {
                         <Badge variant={r.status}>{r.status}</Badge>
                       </td>
                       <td>
-                        {r.status === "PAID" ? (
-                          <button
-                            onClick={() => openReceiptModal(r)}
-                            className="btn btn-outline btn-sm"
-                            title="View receipt"
-                          >
-                            <Receipt size={14} />
-                            <span>Receipt</span>
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => openPaymentModal(r)}
-                            className="btn btn-primary btn-sm"
-                          >
-                            <CheckCircle2 size={14} />
-                            <span>
-                              {isTenant ? "Pay Rent" : "Record Payment"}
-                            </span>
-                          </button>
-                        )}
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                          {r.status === "PAID" ? (
+                            <button
+                              onClick={() => openReceiptModal(r)}
+                              className="btn btn-outline btn-sm"
+                              title="View official receipt"
+                            >
+                              <Receipt size={14} />
+                              <span>Receipt</span>
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => openPaymentModal(r)}
+                                className="btn btn-primary btn-sm"
+                              >
+                                <CheckCircle2 size={14} />
+                                <span>
+                                  {isTenant ? "Pay Rent" : "Record Payment"}
+                                </span>
+                              </button>
+
+                              {isOwner && (
+                                <button
+                                  onClick={() => handleDeleteRent(r._id)}
+                                  className="btn btn-outline btn-icon btn-sm"
+                                  title="Delete unpaid invoice"
+                                >
+                                  <Trash2 size={14} color="var(--danger)" />
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -539,6 +637,59 @@ export const RentPage = () => {
           )}
         </>
       )}
+
+      {/* GENERATE RENT INVOICE MODAL (Owner/Caretaker) */}
+      <Modal
+        isOpen={isCreateRentModalOpen}
+        onClose={() => setIsCreateRentModalOpen(false)}
+        title="Generate Rent Invoice"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setIsCreateRentModalOpen(false)}
+              className="btn btn-outline"
+              disabled={isCreatingRent}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="create-rent-form"
+              className="btn btn-primary"
+              disabled={isCreatingRent}
+            >
+              {isCreatingRent ? "Generating..." : "Generate Invoice"}
+            </button>
+          </>
+        }
+      >
+        <form id="create-rent-form" onSubmit={handleCreateRentInvoice}>
+          <div className="form-group">
+            <label className="form-label">Invoice Amount (₹)</label>
+            <input
+              type="number"
+              className="form-input"
+              placeholder="e.g. 6500"
+              required
+              min="1"
+              value={rentForm.amount}
+              onChange={(e) => setRentForm({ ...rentForm, amount: e.target.value })}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Due Date</label>
+            <input
+              type="date"
+              className="form-input"
+              required
+              value={rentForm.dueDate}
+              onChange={(e) => setRentForm({ ...rentForm, dueDate: e.target.value })}
+            />
+          </div>
+        </form>
+      </Modal>
 
       {/* RECORD PAYMENT / PAY RENT MODAL */}
       <Modal

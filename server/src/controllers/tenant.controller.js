@@ -78,15 +78,14 @@ const getTenants = AsyncHandler(async(req,res)=>{
     };
 }
         const tenants = await Tenant.find(filter)
-    .skip(skip)
-    .limit(limit);
+            .populate("user", "fullName email phone")
+            .populate("room", "roomNumber capacity rentAmount")
+            .skip(skip)
+            .limit(limit);
     const total = await Tenant.countDocuments(filter);
-    const totalPages = Math.ceil(total / limit);
-        if(total === 0)
-    {
-        throw new ApiError(404, "No tenants found");
-    }
-        return res.status(200).json(
+    const totalPages = Math.ceil(total / limit) || 0;
+
+    return res.status(200).json(
         new ApiResponse(200,{tenants, pagination : {
                 page,
                 limit,

@@ -61,11 +61,7 @@ const getRooms = AsyncHandler(async(req,res)=>{
                     .skip(skip)
                     .limit(limit)
      const total = await Room.countDocuments(filter);
-    const totalPages = Math.ceil(total / limit);
-
-       if (total === 0) {
-        throw new ApiError(404, "Rooms not found");
-    }
+    const totalPages = Math.ceil(total / limit) || 0;
     return res.status(200).json(
         new ApiResponse(200,{rooms,pagination :{
              page,

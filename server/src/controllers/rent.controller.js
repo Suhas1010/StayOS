@@ -1,6 +1,7 @@
+import mongoose from "mongoose";
 import Property from "../models/property.models.js";
 import Tenant from "../models/tenant.models.js";
-import Rent from "../models/rent.models.js"
+import Rent from "../models/rent.models.js";
 import { AsyncHandler } from "../utils/AsyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -72,16 +73,13 @@ const getRent = AsyncHandler(async(req,res)=>{
     }
 
     const rent = await Rent.find(filter)
+                           .sort({ dueDate: -1 })
                            .skip(skip)
                            .limit(limit);
-      const total = await Rent.countDocuments(filter);
+    const total = await Rent.countDocuments(filter);
 
-    const totalPages = Math.ceil(total / limit);
+    const totalPages = Math.ceil(total / limit) || 0;
 
-    if(total === 0)
-    {
-        throw new ApiError(404, "Rent not found");
-    }
     return res.status(200).json(
     new ApiResponse(200, {rent,pagination :{
          page,
@@ -211,8 +209,8 @@ const getRentLedger = AsyncHandler(async(req,res)=>{
 }
     const ledger = await Rent.aggregate([{
         $match:{
-            tenant : tenantId,
-            property : propertyId
+            tenant : new mongoose.Types.ObjectId(tenantId),
+            property : new mongoose.Types.ObjectId(propertyId)
         }
 
     },
@@ -252,9 +250,21 @@ const getRentLedger = AsyncHandler(async(req,res)=>{
         }
     }
 ]);
- if(ledger.length === 0)
+    if(ledger.length === 0)
     {
-        throw new ApiError(404,"No rent records found");
+        return res.status(200).json(
+            new ApiResponse(
+                200,
+                {
+                    totalRent: 0,
+                    totalPaid: 0,
+                    totalPending: 0,
+                    totalOverdue: 0,
+                    outstanding: 0
+                },
+                "Rent ledger fetched successfully"
+            )
+        );
     }
 
     const {

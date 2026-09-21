@@ -61,11 +61,7 @@ const getProperties = AsyncHandler(async(req,res)=>{
         .limit(limit);
         const total = await Property.countDocuments(filter);
 
-    const totalPages = Math.ceil(total / limit);
-    if(total === 0)
-    {
-        throw new ApiError(404,"Properties not found");
-    }
+    const totalPages = Math.ceil(total / limit) || 0;
     return res.status(200).json(
         new ApiResponse(200, {
                 properties,

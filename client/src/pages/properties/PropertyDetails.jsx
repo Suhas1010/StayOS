@@ -482,17 +482,27 @@ export const PropertyDetails = () => {
                 </thead>
                 <tbody>
                   {tenants.map((t) => {
-                    const assignedRoom = rooms.find((r) => r._id === t.room);
+                    const assignedRoom = rooms.find((r) => r._id === (typeof t.room === "object" ? t.room?._id : t.room));
+                    const userName = typeof t.user === "object" ? t.user?.fullName : t.user;
+                    const userEmail = typeof t.user === "object" ? t.user?.email : null;
+                    const userPhone = typeof t.user === "object" ? t.user?.phone : null;
+                    const roomNumber = assignedRoom?.roomNumber || (typeof t.room === "object" ? t.room?.roomNumber : null);
 
                     return (
                       <tr key={t._id}>
                         <td>
-                          <div style={{ fontWeight: "600" }}>{t.user}</div>
-                          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>ID: {t._id}</span>
+                          <div style={{ fontWeight: "600" }}>{userName || "Registered Resident"}</div>
+                          {userEmail && (
+                            <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>{userEmail}</div>
+                          )}
+                          {userPhone && (
+                            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{userPhone}</div>
+                          )}
+                          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>ID: #{t._id.slice(-6)}</span>
                         </td>
                         <td>
-                          {assignedRoom ? (
-                            <Badge variant="success">Room #{assignedRoom.roomNumber}</Badge>
+                          {roomNumber ? (
+                            <Badge variant="success">Room #{roomNumber}</Badge>
                           ) : (
                             <Badge variant="warning">No Room Assigned</Badge>
                           )}
@@ -557,7 +567,9 @@ export const PropertyDetails = () => {
               >
                 {tenants.map((t) => (
                   <option key={t._id} value={t._id}>
-                    Tenant: {t.user} (ID: {t._id.slice(-6)})
+                    {typeof t.user === "object"
+                      ? `${t.user?.fullName || "Tenant"} (ID: #${t._id.slice(-6)})`
+                      : `Tenant: ${t.user} (ID: #${t._id.slice(-6)})`}
                   </option>
                 ))}
               </select>
