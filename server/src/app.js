@@ -8,6 +8,7 @@ import roomRouter from "./routes/room.routes.js";
 import tenantRouter from "./routes/tenant.routes.js";
 import rentRouter from "./routes/rent.routes.js"
 import complaintRouter from "./routes/complaint.routes.js"
+import transactionRouter from "./routes/transaction.routes.js"
 
 const app = express();
 
@@ -42,11 +43,15 @@ app.use(
 // Routes
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/properties", propertyRouter);
+app.use("/api/v1/tenants", tenantRouter);
 app.use("/api/v1/properties/:propertyId/rooms", roomRouter);
-app.use("/api/v1/properties/:propertyId/tenants", tenantRouter)
-app.use("/api/v1/properties/:propertyId/tenants/:tenantId/rent",rentRouter)
-app.use("/api/v1/properties/:propertyId/complaints",complaintRouter)
-
+app.use("/api/v1/properties/:propertyId/tenants", tenantRouter);
+app.use("/api/v1/properties/:propertyId/tenants/:tenantId/rent", rentRouter);
+app.use("/api/v1/properties/:propertyId/complaints", complaintRouter);
+app.use(
+    "/api/v1/properties/:propertyId/tenants/:tenantId/rent/:rentId/transactions",
+    transactionRouter
+);
 
 app.use((err, req, res, next) => {
     const statusCode = err.statusCode || 500;

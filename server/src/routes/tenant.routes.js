@@ -7,7 +7,8 @@ import {
     updateTenant,
     deleteTenant,
     assignTenantToRoom,
-    removeTenantFromRoom
+    removeTenantFromRoom,
+    getMyStay
 } from "../controllers/tenant.controller.js";
 
 import { verifyJWT } from "../middlewares/auth.middleware.js";
@@ -26,6 +27,8 @@ const router = Router({
 
 router.use(verifyJWT);
 
+// Logged-in tenant retrieves their active stay (property, room, rent)
+router.route("/my-stay").get(verifyRole(["TENANT"]), getMyStay);
 
 router.route("/")
     .post(

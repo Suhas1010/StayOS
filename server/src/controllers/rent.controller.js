@@ -193,12 +193,99 @@ const markRentAsPaid = AsyncHandler(async(req,res)=>{
         new ApiResponse(200,rent,"Rent marked as paid")
     );
 });
+const getRentLedger = AsyncHandler(async(req,res)=>{
+    const {propertyId,tenantId} = req.params;
+    const property = await Property.findById(propertyId);
+    if(!property)
+    {
+        throw new ApiError(404,"Property not found");
+    }
+    const tenant = await Tenant.findById(tenantId);
+    if(!tenant)
+    {
+        throw new ApiError(404,"Tenant not found");
+    }
+    if(!tenant.property.equals(propertyId))
+{
+    throw new ApiError(403,"This property does not belong to the tenant");
+}
+    const ledger = await Rent.aggregate([{
+        $match:{
+            tenant : tenantId,
+            property : propertyId
+        }
 
+    },
+    {
+        $group :{
+            _id : null,
+            totalRent :{
+                $sum : "$amount"
+            },
+            totalPaid :{
+                $sum :{
+                    $cond: [
+                            { $eq: ["$status", "PAID"] },
+                            "$amount",
+                            0
+                        ]
+                }
+            },
+            totalPending :{
+                $sum:{
+                    $cond :[
+                        {$eq : ["$status","PENDING"] },
+                        "$amount",
+                        0
+                    ]
+                }
+            },
+            totalOverdue :{
+                $sum :{
+                    $cond :[
+                        {$eq : ["$status","OVERDUE"] },
+                        "$amount",
+                        0
+                    ]
+                }
+            }
+        }
+    }
+]);
+ if(ledger.length === 0)
+    {
+        throw new ApiError(404,"No rent records found");
+    }
+
+    const {
+        totalRent,
+        totalPaid,
+        totalPending,
+        totalOverdue
+    } = ledger[0];
+
+    const outstanding = totalPending + totalOverdue;
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                totalRent,
+                totalPaid,
+                totalPending,
+                totalOverdue,
+                outstanding
+            },
+            "Rent ledger fetched successfully"
+        )
+    );
+})
 export {
     createRent,
     getRent,
     getRentById,
     updateRent,
     deleteRent,
-    markRentAsPaid
+    markRentAsPaid,
+    getRentLedger
 }

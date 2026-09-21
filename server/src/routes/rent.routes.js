@@ -5,7 +5,8 @@ import {
     getRentById,
     updateRent,
     deleteRent,
-    markRentAsPaid
+    markRentAsPaid,
+    getRentLedger
 } from "../controllers/rent.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { verifyRole } from "../middlewares/role.middleware.js";
@@ -21,7 +22,12 @@ router.use(verifyJWT);
 router.route("/")
         .post(verifyRole(["OWNER", "CARETAKER"]),verifyPropertyAccess,createRent)
         .get(verifyRole(["OWNER","CARETAKER","TENANT"]),verifyTenantAccess,getRent)
-
+router.route("/ledger")
+    .get(
+        verifyRole(["OWNER", "CARETAKER", "TENANT"]),
+        verifyTenantAccess,
+        getRentLedger
+    );
 router.route("/:rentId")
          .get( verifyRole(["OWNER", "CARETAKER", "TENANT"]),verifyTenantAccess, getRentById )
          .patch( verifyRole(["OWNER", "CARETAKER"]), verifyPropertyAccess, updateRent)

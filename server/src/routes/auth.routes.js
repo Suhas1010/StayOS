@@ -23,8 +23,9 @@ router.post("/logout",verifyJWT,logoutUser);
 router.get("/current-user",verifyJWT,getCurrentUser);
 router.patch("/change-password",verifyJWT,changePassword);
 router.post("/refresh-token",refreshAccessToken);
-router.get("/verify-email/:verificationToken",verifyEmail);
-router.post("/resend-verification",resendEmailVerification);
+router.get("/verify-email/:verificationToken", verifyEmail);
+router.post("/resend-verification", resendEmailVerification);
+router.post("/resend-email-verification", resendEmailVerification);
 
 router.post("/forgot-password", forgotPassword);
 

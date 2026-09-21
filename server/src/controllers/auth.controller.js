@@ -232,37 +232,41 @@ const refreshAccessToken = AsyncHandler(async (req, res) => {
 
 
 const verifyEmail = AsyncHandler(async (req, res) => {
-    const {verificationToken} = req.params;
-    if(!verificationToken){
-        throw new ApiError(404,"Verfication Token not found");
+    const { verificationToken } = req.params;
+    if (!verificationToken) {
+        throw new ApiError(400, "Verification token is required");
     }
+
     const hashedToken = crypto
-                        .createHash("sha256")
-                        .update(verificationToken)
-                        .digest("hex")
-     const user = await User.findOne({
+        .createHash("sha256")
+        .update(verificationToken)
+        .digest("hex");
+
+    const user = await User.findOne({
         emailVerificationToken: hashedToken,
-        emailVerificationExpiry: { $gt: new Date() }
     });
-    if(!user)
-    {
-        throw new ApiError(404,"User not found")
+
+    if (!user) {
+        throw new ApiError(400, "Invalid or already used verification token");
     }
+
+    if (user.emailVerificationExpiry && new Date() > user.emailVerificationExpiry) {
+        throw new ApiError(400, "Verification link has expired. Please request a new verification email.");
+    }
+
     user.isEmailVerified = true;
     user.emailVerificationToken = undefined;
     user.emailVerificationExpiry = undefined;
 
     await user.save();
 
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(
-                200,
-                {},
-                "Email verified successfully"
-            )
-        );
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            { email: user.email },
+            "Email verified successfully! You can now log in."
+        )
+    );
 });
 
 const resendEmailVerification = AsyncHandler(async (req, res) => {

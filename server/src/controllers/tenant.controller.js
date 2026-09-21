@@ -260,6 +260,22 @@ const removeTenantFromRoom = AsyncHandler(async(req,res)=>{
     );
 });
 
+const getMyStay = AsyncHandler(async (req, res) => {
+    const tenant = await Tenant.findOne({ user: req.user._id })
+        .populate("property")
+        .populate("room");
+
+    if (!tenant) {
+        return res.status(200).json(
+            new ApiResponse(200, null, "You have not been assigned to any property yet.")
+        );
+    }
+
+    return res.status(200).json(
+        new ApiResponse(200, tenant, "Stay details fetched successfully")
+    );
+});
+
 export {
     createTenant,
     getTenants,
@@ -267,5 +283,6 @@ export {
     updateTenant,
     deleteTenant,
     assignTenantToRoom,
-    removeTenantFromRoom
+    removeTenantFromRoom,
+    getMyStay
 }
